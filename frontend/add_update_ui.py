@@ -1,3 +1,8 @@
+# The original solution did not work correctly.  When adding an Amount and selecting a
+# different date, the system did not initialize Amount back to 0.0.  Removed the original
+# initialization code and made certain that st.session_state was used to override the key
+# value.  The original code tried to initialize the value but the key overrode it.
+
 from datetime import datetime
 import streamlit as st
 import requests
