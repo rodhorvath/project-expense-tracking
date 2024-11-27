@@ -1,23 +1,36 @@
-import streamlit as st
 from datetime import datetime
+import streamlit as st
 import requests
 
 API_URL = "http://localhost:8000"
 
+now = datetime.now().date()
+
 
 def add_update_tab():
-    selected_date = st.date_input("Enter Date", datetime(2024, 8, 1), label_visibility="collapsed")
+    selected_date = st.date_input("Enter Date", now, label_visibility="collapsed")
+
+    if "last_selected_date" not in st.session_state:
+        st.session_state.last_selected_date = selected_date
+    # Reset session state values when the date changes
+    if selected_date != st.session_state.last_selected_date:
+        st.session_state.last_selected_date = selected_date
+        for i in range(5):  # Reset widgets for up to 5 expenses
+            st.session_state[f"amount_{i}"] = 0.0
+            st.session_state[f"category_{i}"] = "Shopping"
+            st.session_state[f"notes_{i}"] = ""
+
     response = requests.get(f"{API_URL}/expenses/{selected_date}")
     if response.status_code == 200:
         existing_expenses = response.json()
-        # st.write(existing_expenses)
     else:
         st.error("Failed to retrieve expenses")
         existing_expenses = []
+    st.write(existing_expenses)
 
     categories = ["Rent", "Food", "Shopping", "Entertainment", "Other"]
-
     with st.form(key="expense_form"):
+
         col1, col2, col3 = st.columns(3)
         with col1:
             st.text("Amount")
@@ -29,36 +42,35 @@ def add_update_tab():
         expenses = []
         for i in range(5):
             if i < len(existing_expenses):
-                amount = existing_expenses[i]['amount']
-                category = existing_expenses[i]["category"]
-                notes = existing_expenses[i]["notes"]
-            else:
-                amount = 0.0
-                category = "Shopping"
-                notes = ""
+                # Load existing expense data into session state
+                st.session_state[f"amount_{i}"] = existing_expenses[i].get("amount", 0.0)
+                st.session_state[f"category_{i}"] = existing_expenses[i].get("category", "Shopping")
+                st.session_state[f"notes_{i}"] = existing_expenses[i].get("notes", "")
 
             col1, col2, col3 = st.columns(3)
+
             with col1:
-                amount_input = st.number_input(label="Amount", min_value=0.0, step=1.0, value=amount, key=f"amount_{i}",
-                                               label_visibility="collapsed")
+                amount_input = st.number_input(label="Amount", min_value=0.0, step=1.0,
+                                               key= f"amount_{i}", label_visibility="collapsed")
             with col2:
-                category_input = st.selectbox(label="Category", options=categories, index=categories.index(category),
-                                              key=f"category_{i}", label_visibility="collapsed")
+                category_input = st.selectbox(label="Category", options = categories,
+                                              key= f"category_{i}",label_visibility="collapsed")
             with col3:
-                notes_input = st.text_input(label="Notes", value=notes, key=f"notes_{i}", label_visibility="collapsed")
+                notes_input = st.text_input(label="Notes",
+                                            key=f"notes_{i}",label_visibility="collapsed")
 
             expenses.append({
                 'amount': amount_input,
                 'category': category_input,
                 'notes': notes_input
             })
-
         submit_button = st.form_submit_button()
         if submit_button:
-            filtered_expenses = [expense for expense in expenses if expense['amount'] > 0]
-
+            st.write(expenses)
+            filtered_expenses = [expense for expense in expenses if expense['amount']>0]
             response = requests.post(f"{API_URL}/expenses/{selected_date}", json=filtered_expenses)
             if response.status_code == 200:
                 st.success("Expenses updated successfully!")
             else:
-                st.error("Failed to update expenses.")
+                st.error("Failed to update expenses")
+
